@@ -1,0 +1,15 @@
+{
+  "name": "cylon-example-browserify",
+  "version": "0.0.1",
+
+  "private": true,
+
+  "scripts": {
+    "start": "node ./bin/serve",
+    "build": "browserify script.js > ./js/robot.js"
+  },
+
+  "dependencies": {
+    "cylon": "~0.19.1"
+  }
+}
