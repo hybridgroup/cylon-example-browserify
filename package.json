@@ -4,11 +4,6 @@
 
   "private": true,
 
-  "scripts": {
-    "start": "node ./bin/serve",
-    "build": "browserify script.js > ./js/robot.js"
-  },
-
   "dependencies": {
     "cylon": "~0.21.0"
   }

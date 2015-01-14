@@ -21,7 +21,7 @@ Then, use it to compile your Cylon code:
 
     $ browserify script.js > js/script.js
 
-This command can also be run with `npm build`.
+This command can also be run with `make build`.
 
 ## More modules
 
@@ -37,7 +37,7 @@ The example includes a small Node webserver, in the `bin` directory.
 
     $ ./bin/serve
 
-The server can also be run with `npm start`.
+The server can also be run with `make serve`.
 
 After this is started, you can visit `http://localhost:3000/` to see your Robot
 in action.
