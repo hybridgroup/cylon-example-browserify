@@ -1,7 +1,11 @@
+BIN := ./node_modules/.bin/
+
 .PHONY: start build
 
 serve:
-	@node ./bin/serve
+	@echo "Starting HTTP server on port 8000"
+	python -m SimpleHTTPServer
 
 build:
-	@browserify script.js > ./js/robot.js
+	@echo "Building script.js with Browserify"
+	$(BIN)browserify script.js > ./browser.js

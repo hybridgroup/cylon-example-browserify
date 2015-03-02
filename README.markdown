@@ -1,43 +1,41 @@
-# Cylon.JS - Browserify Example
+# Cylon.js - Browserify Example
 
-This repo contains an example of running Cylon.JS in the browser, using the [Browserify][] tool.
+This repo contains a basic example Cylon robot, and all the tooling needed to get it running in a browser.
 
-It includes a custom Cylon logger to log messages directly to the page.
+It does this using the [Browserify](http://browserify.org) tool.
 
-[Browserify]: http://browserify.org
+It also includes a custom Cylon logger (`browser-logger.js`) to log messages directly to the page.
 
 ## Building
 
-This example is built with Browserify.
-To write your robot's code, modify `script.js`.
+After cloning, you can run the example with the `make` command:
 
-Then, when you want to run it in the browser, you need to run it through Browserify.
+    $ make
+    Starting HTTP server on port 8000
+    python -m SimpleHTTPServer
 
-If you don't have it installed already, install Browserify through NPM:
+This will start a basic Python HTTP server on port `8000`, letting you run your robot from the browser by navigating to http://localhost:8000.
 
-    $ npm install -g browserify
+## Modifying
 
-Then, use it to compile your Cylon code:
+This is a very basic example, it's likely you'll want to expand on it and add more modules.
 
-    $ browserify script.js > js/script.js
+To install the Browserify tool, along with Cylon's core, use NPM:
 
-This command can also be run with `make build`.
+    $ npm install
 
-## More modules
+Now you can build the `browser.js` file again with `make build`:
 
-If you start using additional Cylon modules, such as `cylon-leapmotion`, etc., you'll need to manually specify them to browserify when building your robot.
+    $ make build
+    Building script.js with Browserify
+    ./node_modules/.bin/browserify script.js > ./browser.js
 
-    $ browserify -r cylon-leapmotion script.js > js/script.js
+Alternatively, you can run the above Browserify command manually if you'd like to change it.
 
-This is due to the dynamic loading of modules Cylon does, which Browserify cannot automatically detect.
+## More Modules
 
-## Running
+If you're starting to use additional Cylon support modules, such as `cylon-leapmotion` or `cylon-ardrone`, you'll need to inform Browserify about them manually:
 
-The example includes a small Node webserver, in the `bin` directory.
+    $ ./node_modules/.bin/browserify -r cylon-leapmotion script.js > browser.js
 
-    $ ./bin/serve
-
-The server can also be run with `make serve`.
-
-After this is started, you can visit `http://localhost:3000/` to see your Robot
-in action.
+This is necessary due to Browserify's static `require` call checking, which can't detect or work with Cylon's dynamic module loader.
