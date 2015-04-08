@@ -364,6 +364,7 @@ process.browser = true;
 process.env = {};
 process.argv = [];
 process.version = ''; // empty string to avoid regexp issues
+process.versions = {};
 
 function noop() {}
 
@@ -401,6 +402,10 @@ var Basestar = require("./basestar"),
     Utils = require("./utils"),
     _ = require("./utils/helpers");
 
+function formatErrorMessage(name, message) {
+  return ["Error in connection", "'" + name + "'", "- " + message].join(" ");
+}
+
 // Public: Creates a new Adaptor
 //
 // opts - hash of acceptable params
@@ -424,13 +429,37 @@ var Adaptor = module.exports = function Adaptor(opts) {
   this.details = {};
 
   _.each(opts, function(opt, name) {
-    if (!~["robot", "name", "adaptor", "events"].indexOf(name)) {
+    if (!_.includes(["robot", "name", "adaptor", "events"], name)) {
       this.details[name] = opt;
     }
   }, this);
 };
 
 Utils.subclass(Adaptor, Basestar);
+
+// Public: Basic #connect function. Must be overwritten by a descendent class
+//
+// Returns nothing, throws an error
+Adaptor.prototype.connect = function() {
+  var message = formatErrorMessage(
+    this.name,
+    "Adaptor#connect method must be overwritten by descendant classes."
+  );
+
+  throw new Error(message);
+};
+
+// Public: Basic #disconnect function. Must be overwritten by a descendent class
+//
+// Returns nothing, throws an error
+Adaptor.prototype.disconnect = function() {
+  var message = formatErrorMessage(
+    this.name,
+    "Adaptor#disconnect method must be overwritten by descendant classes."
+  );
+
+  throw new Error(message);
+};
 
 // Public: Expresses the Connection in JSON format
 //
@@ -478,6 +507,27 @@ Utils.subclass(Basestar, EventEmitter);
 //
 // Returns the klass where the methods have been proxied
 Basestar.prototype.proxyMethods = Utils.proxyFunctionsToObject;
+
+// Public: Triggers a callback and emits an event with provided data
+//
+// event - name of event to be triggered
+// callback - callback function to be triggered
+// ...data - additional arguments to be passed to both event/callback
+//
+// Returns nothing
+Basestar.prototype.respond = function(event, callback, err) {
+  var args = Array.prototype.slice.call(arguments, 3);
+
+  if (!!err) {
+    this.emit("error", err);
+  } else {
+    this.emit.apply(this, [event].concat(args));
+  }
+
+  if (typeof callback === "function") {
+    callback.apply(this, [err].concat(args));
+  }
+};
 
 // Public: Defines an event handler that proxies events from a source object
 // to a target object
@@ -663,8 +713,8 @@ Cylon.api = function api(Server, opts) {
           ];
         }
 
-        _.each(messages, _.arity(Logger.error, 1));
-        return;
+        _.each(messages, _.arity(Logger.fatal, 1));
+        throw new Error("Missing API plugin - cannot proceed");
       } else {
         throw e;
       }
@@ -769,6 +819,10 @@ var Basestar = require("./basestar"),
     Utils = require("./utils"),
     _ = require("./utils/helpers");
 
+function formatErrorMessage(name, message) {
+  return ["Error in driver", "'" + name + "'", "- " + message].join(" ");
+}
+
 // Public: Creates a new Driver
 //
 // opts - hash of acceptable params
@@ -796,13 +850,37 @@ var Driver = module.exports = function Driver(opts) {
   _.each(opts, function(opt, name) {
     var banned = ["robot", "name", "connection", "driver", "events"];
 
-    if (!~banned.indexOf(name)) {
+    if (!_.includes(banned, name)) {
       this.details[name] = opt;
     }
   }, this);
 };
 
 Utils.subclass(Driver, Basestar);
+
+// Public: Basic #start function. Must be overwritten by a descendent class
+//
+// Returns nothing, throws an error
+Driver.prototype.start = function() {
+  var message = formatErrorMessage(
+    this.name,
+    "Driver#start method must be overwritten by descendant classes."
+  );
+
+  throw new Error(message);
+};
+
+// Public: Basic #halt function. Must be overwritten by a descendent class
+//
+// Returns nothing, throws an error
+Driver.prototype.halt = function() {
+  var message = formatErrorMessage(
+    this.name,
+    "Driver#halt method must be overwritten by descendant classes."
+  );
+
+  throw new Error(message);
+};
 
 Driver.prototype.setupCommands = function(commands, proxy) {
   if (proxy == null) {
@@ -1113,6 +1191,7 @@ module.exports = {
 };
 
 },{}],13:[function(require,module,exports){
+(function (process){
 /*
  * logger
  * cylonjs.com
@@ -1139,6 +1218,11 @@ var Logger = module.exports = {
     var logger = Config.logging.logger,
         level  = Config.logging.level || "info";
 
+    // --debug CLI flag overrides any other option
+    if (_.includes(process.argv, "--debug")) {
+      level = "debug";
+    }
+
     logger = (logger == null) ? BasicLogger : logger;
 
     this.logger = logger || NullLogger;
@@ -1162,7 +1246,8 @@ levels.forEach(function(level) {
   };
 });
 
-},{"./config":7,"./logger/basic_logger":14,"./logger/null_logger":15,"./utils/helpers":23}],14:[function(require,module,exports){
+}).call(this,require('_process'))
+},{"./config":7,"./logger/basic_logger":14,"./logger/null_logger":15,"./utils/helpers":23,"_process":4}],14:[function(require,module,exports){
 "use strict";
 
 var getArgs = function(args) {
@@ -1218,7 +1303,8 @@ var NullLogger = module.exports = {
 
 "use strict";
 
-var Logger = require("./logger");
+var Logger = require("./logger"),
+    _ = require("./utils/helpers");
 
 // Explicitly these modules here, so Browserify can grab them later
 require("./test/loopback");
@@ -1274,7 +1360,7 @@ var Registry = module.exports = {
 
   findBy: function(prop, name) {
     // pluralize, if necessary
-    if (!/s$/.test(name)) {
+    if (prop.slice(-1) !== "s") {
       prop += "s";
     }
 
@@ -1308,7 +1394,7 @@ var Registry = module.exports = {
     for (var name in this.data) {
       var repo = this.data[name];
 
-      if (~repo[entry].indexOf(value)) {
+      if (repo[entry] && _.includes(repo[entry], value)) {
         return repo.module;
       }
     }
@@ -1323,7 +1409,7 @@ var Registry = module.exports = {
 });
 
 }).call(this,require('_process'))
-},{"./logger":13,"./test/loopback":18,"./test/ping":19,"./test/test-adaptor":20,"./test/test-driver":21,"_process":4}],17:[function(require,module,exports){
+},{"./logger":13,"./test/loopback":18,"./test/ping":19,"./test/test-adaptor":20,"./test/test-driver":21,"./utils/helpers":23,"_process":4}],17:[function(require,module,exports){
 (function (process){
 /*
  * robot
@@ -1373,6 +1459,9 @@ var Robot = module.exports = function Robot(opts) {
   }, this);
 
   this.initRobot(opts);
+
+  this.checkForBadSyntax(opts);
+
   this.initConnections(opts);
   this.initDevices(opts);
 
@@ -1381,10 +1470,14 @@ var Robot = module.exports = function Robot(opts) {
       return;
     }
 
-    this[name] = opt;
+    if (_.isFunction(opt)) {
+      this[name] = opt.bind(this);
 
-    if (opts.commands == null && _.isFunction(opt)) {
-      this.commands[name] = opt;
+      if (opts.commands == null) {
+        this.commands[name] = opt.bind(this);
+      }
+    } else {
+      this[name] = opt;
     }
   }, this);
 
@@ -1476,6 +1569,34 @@ Robot.prototype.initRobot = function(opts) {
   }
 };
 
+// Public: Checks options for bad Cylon syntax
+//
+// Returns nothing
+Robot.prototype.checkForBadSyntax = function(opts) {
+  var self = this;
+
+  var RobotDSLError = new Error("Unable to start robot due to a syntax error");
+  RobotDSLError.name = "RobotDSLError";
+
+  function has(prop) { return opts[prop] != null; }
+
+  function checkForSingleObjectSyntax(type) {
+    var plural = type + "s";
+
+    if (has(type) && !has(plural)) {
+      [
+        "The single-object '" + type + "' syntax for robots is not valid.",
+        "Instead, use the multiple-value '" + plural + "' key syntax.",
+        "Details: http://cylonjs.com/documentation/guides/working-with-robots/"
+      ].forEach(function(str) { self.log("fatal", str); });
+
+      throw RobotDSLError;
+    }
+  }
+
+  ["connection", "device"].forEach(checkForSingleObjectSyntax);
+};
+
 // Public: Initializes all connections for the robot
 //
 // opts - options array passed to constructor
@@ -1484,39 +1605,26 @@ Robot.prototype.initRobot = function(opts) {
 Robot.prototype.initConnections = function(opts) {
   this.log("info", "Initializing connections.");
 
-  if (opts.connection == null && opts.connections == null) {
+  if (opts.connections == null) {
     return this.connections;
   }
 
-  if (opts.connection) {
-    this.deprecationWarning("connection");
-    this.connection(opts.connection.name, opts.connection);
-    return this.connections;
-  }
+  _.each(opts.connections, function(conn, key) {
+    var name = _.isString(key) ? key : conn.name;
 
-  if (_.isObjectLoose(opts.connections)) {
-    if (_.isArray(opts.connections)) {
-      this.performArraySetup(opts.connections, "connection", "connections");
-      return this.connections;
+    if (conn.devices) {
+      opts.devices = opts.devices || {};
+
+      _.each(conn.devices, function(device, d) {
+        device.connection = name;
+        opts.devices[d] = device;
+      });
+
+      delete conn.devices;
     }
 
-    _.each(opts.connections, function(conn, key) {
-      var name = _.isString(key) ? key : conn.name;
-
-      if (conn.devices) {
-        opts.devices = opts.devices || {};
-
-        _.each(conn.devices, function(device, d) {
-          device.connection = name;
-          opts.devices[d] = device;
-        });
-
-        delete conn.devices;
-      }
-
-      this.connection(name, conn);
-    }, this);
-  }
+    this.connection(name, conn);
+  }, this);
 
   return this.connections;
 };
@@ -1564,7 +1672,7 @@ Robot.prototype.device = function(name, device) {
 Robot.prototype.initDevices = function(opts) {
   this.log("info", "Initializing devices.");
 
-  if (opts.device == null && opts.devices == null) {
+  if (opts.devices == null) {
     return this.devices;
   }
 
@@ -1573,23 +1681,10 @@ Robot.prototype.initDevices = function(opts) {
     throw new Error("No connections specified");
   }
 
-  if (opts.device) {
-    this.deprecationWarning("device");
-    this.device(opts.device.name, opts.device);
-    return this.devices;
-  }
-
-  if (_.isObjectLoose(opts.devices)) {
-    if (_.isArray(opts.devices)) {
-      this.performArraySetup(opts.devices, "device", "devices");
-      return this.devices;
-    }
-
-    _.each(opts.devices, function(device, key) {
-      var name = _.isString(key) ? key : device.name;
-      this.device(name, device);
-    }, this);
-  }
+  _.each(opts.devices, function(device, key) {
+    var name = _.isString(key) ? key : device.name;
+    this.device(name, device);
+  }, this);
 
   return this.devices;
 };
@@ -1750,31 +1845,6 @@ Robot.prototype.log = function(level) {
   var args = Array.prototype.slice.call(arguments, 1);
   args.unshift("[" + this.name + "] -");
   Logger[level].apply(null, args);
-};
-
-Robot.prototype.performArraySetup = function(things, typeOfThing, arrayName) {
-  var str = "Specifying ";
-  str += arrayName;
-  str += " as an array is deprecated. ";
-  str += "It will be removed in 1.0.0.";
-
-  this.log("warn", str);
-
-  things.forEach(function(t, key) {
-    var name = _.isString(key) === "string" ? key : t.name;
-    this[typeOfThing](name, t);
-  }, this);
-};
-
-Robot.prototype.deprecationWarning = function(kind) {
-  var msg = "Specifying a single ";
-  msg += kind;
-  msg += " with the '";
-  msg += kind;
-  msg += "' key ";
-  msg += "is deprecated. It will be removed in 1.0.0.";
-
-  this.log("warn", msg);
 };
 
 }).call(this,require('_process'))
@@ -2361,6 +2431,14 @@ extend(H, {
   arity: arity,
   partial: partial,
   partialRight: partialRight
+});
+
+function includes(arr, value) {
+  return !!~arr.indexOf(value);
+}
+
+extend(H, {
+  includes: includes
 });
 
 },{}],24:[function(require,module,exports){
