@@ -5,7 +5,7 @@
   "private": true,
 
   "dependencies": {
-    "cylon": "1.0.0",
-    "browserify": "9.0.7"
+    "cylon": "~1.1.0",
+    "browserify": "~10.2.4"
   }
 }
